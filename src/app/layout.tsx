@@ -7,8 +7,8 @@ import MyProfilePic from "./components/MyProfilePic";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Darq's Blog",
-  description: "Authored by Darq",
+  title: "Sahil's Blog",
+  description: "Authored by Sahil",
 };
 
 export default function RootLayout({

@@ -1,4 +1,7 @@
 import { compileMDX } from "next-mdx-remote/rsc";
+import rehypeAutolinkHeadings from "rehype-autolink-headings";
+import rehypeSlug from "rehype-slug";
+import rehypeHighlight from "rehype-highlight";
 
 type Filetree = {
   tree: [
@@ -8,7 +11,7 @@ type Filetree = {
   ];
 };
 
-const GITHUB_USER = process.env.GITHUB_USERNAME;
+const GITHUB_USERNAME = process.env.GITHUB_USERNAME;
 const GITHUB_REPO = process.env.GITHUB_REPO;
 const TOKEN = process.env.GITHUB_TOKEN;
 
@@ -16,7 +19,7 @@ export async function getPostByName(
   fileName: string
 ): Promise<BlogPost | undefined> {
   const res = await fetch(
-    `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main${fileName}`,
+    `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/main/${fileName}`,
     {
       headers: {
         Accept: "application/vnd.github+json",
@@ -38,6 +41,21 @@ export async function getPostByName(
     tags: string[];
   }>({
     source: rawMDX,
+    options: {
+      parseFrontmatter: true,
+      mdxOptions: {
+        rehypePlugins: [
+          rehypeSlug,
+          rehypeHighlight,
+          [
+            rehypeAutolinkHeadings,
+            {
+              behaviour: "wrap",
+            },
+          ],
+        ],
+      },
+    },
   });
 
   const id = fileName.replace(/\.mdx$/, "");

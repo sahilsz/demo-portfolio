@@ -2,6 +2,7 @@ import getFormattedDate from "@/lib/getFormattedDate";
 import { getPostsMeta, getPostByName } from "@/lib/posts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import "highlight.js/styles/github-dark.css";
 
 export const revalidate = 0;
 
@@ -49,9 +50,7 @@ export default async function Post({ params: { postId } }: Props) {
       <article>{content}</article>
       <section>
         <h3>Related:</h3>
-        <div className="flex flex-row gap-4">
-          {tags}
-        </div>
+        <div className="flex flex-row gap-4">{tags}</div>
         <p className="mh-10">
           <Link href="/">← Back to Home</Link>
         </p>

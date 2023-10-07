@@ -1,57 +1,91 @@
-import fs from "fs";
-import path from "path";
-import matter from "gray-matter";
-import { remark } from "remark";
-import html from "remark-html";
+import { compileMDX } from "next-mdx-remote/rsc";
 
-const postsDirectory = path.join(process.cwd(), "blogposts");
+type Filetree = {
+  tree: [
+    {
+      path: string;
+    }
+  ];
+};
 
-export function getSortedPostsData() {
-  // Get filenames under /posts
-  const filenames = fs.readdirSync(postsDirectory);
+const GITHUB_USER = process.env.GITHUB_USERNAME;
+const GITHUB_REPO = process.env.GITHUB_REPO;
+const TOKEN = process.env.GITHUB_TOKEN;
 
-  const allPostsData = filenames.map((filename) => {
-    // Remove ".md" from file name to get id
-    const id = filename.replace(/\.md$/, "");
+export async function getPostByName(
+  fileName: string
+): Promise<BlogPost | undefined> {
+  const res = await fetch(
+    `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main${fileName}`,
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${TOKEN}`,
+        "X-Github-Api-Version": "2022-11-28",
+      },
+    }
+  );
 
-    // Read markdown file as string
-    const fullPath = path.join(postsDirectory, filename);
-    const fileContents = fs.readFileSync(fullPath, "utf8");
+  if (!res.ok) return undefined;
 
-    // Use gray-matter to parse the post metadata section
-    const matterResult = matter(fileContents);
-    const blogPost: BlogPost = {
-      id,
-      title: matterResult.data.title,
-      date: matterResult.data.date,
-    };
+  const rawMDX = await res.text();
 
-    return blogPost;
+  if (rawMDX === "404: Not Found") return undefined;
+
+  const { frontmatter, content } = await compileMDX<{
+    title: string;
+    date: string;
+    tags: string[];
+  }>({
+    source: rawMDX,
   });
 
-  // Sort posts by date
-  return allPostsData.sort((a, b) => (a.date < b.date ? 1 : -1));
-}
+  const id = fileName.replace(/\.mdx$/, "");
 
-export async function getPostData(id: string) {
-  const fullPath = path.join(postsDirectory, `${id}.md`);
-  const fileContent = fs.readFileSync(fullPath, "utf8");
-
-  // Use gray-matter to parse the post metadata section
-  const matterResult = matter(fileContent);
-
-  const processedContent = await remark()
-    .use(html)
-    .process(matterResult.content);
-
-  const contentHtml = processedContent.toString();
-
-  const blogPostWithHTML: BlogPost & { contentHtml: string } = {
-    id,
-    title: matterResult.data.title,
-    date: matterResult.data.date,
-    contentHtml,
+  const blogPostObj: BlogPost = {
+    meta: {
+      id,
+      title: frontmatter.title,
+      date: frontmatter.date,
+      tags: frontmatter.tags,
+    },
+    content,
   };
 
-  return blogPostWithHTML;
+  return blogPostObj;
+}
+
+export async function getPostsMeta(): Promise<Meta[] | undefined> {
+  const res = await fetch(
+    "https://api.github.com/repos/sahilsz/blogposts/git/trees/main?recursive=1",
+    {
+      headers: {
+        Accept: "aaplication/vnd.github+json",
+        Authorization: `Bearer ${TOKEN}`,
+        "X-Github-Api-Version": "2022-11-28",
+      },
+    }
+  );
+
+  if (!res.ok) return undefined;
+
+  const repoFileTree: Filetree = await res.json();
+
+  // Filter files that ends with ".mdx"
+  const filesArray = repoFileTree.tree
+    .map((obj) => obj.path)
+    .filter((path) => path.endsWith(".mdx"));
+
+  const posts: Meta[] = [];
+
+  for (const file of filesArray) {
+    const post = await getPostByName(file);
+
+    if (post) {
+      const { meta } = post;
+      posts.push(meta);
+    }
+  }
+
+  return posts.sort((a, b) => (a.date < b.date ? 1 : -1));
 }

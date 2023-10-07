@@ -1,7 +1,9 @@
 import getFormattedDate from "@/lib/getFormattedDate";
-import { getPostData, getSortedPostsData } from "@/lib/posts";
+import { getPostsMeta, getPostByName } from "@/lib/posts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+export const revalidate = 0;
 
 type Props = {
   params: {
@@ -9,10 +11,10 @@ type Props = {
   };
 };
 
-export function generateMetadata({ params: { postId } }: Props) {
-  const posts = getSortedPostsData();
+export async function generateMetadata({ params: { postId } }: Props) {
+  const post = await getPostByName(`${postId}.mdx`);
 
-  const post = posts.find((post) => post.id === postId);
+  // const post = posts.find((post) => post.id === postId);
 
   if (!post) {
     return {
@@ -21,41 +23,50 @@ export function generateMetadata({ params: { postId } }: Props) {
   }
 
   return {
-    title: post.id,
+    title: post.meta.title,
   };
 }
 
-export default async function Post({
-  params: { postId },
-}: {
-  params: { postId: string };
-}) {
-  const posts = getSortedPostsData();
+export default async function Post({ params: { postId } }: Props) {
+  const post = await getPostByName(`${postId}.mdx`);
 
-  if (!posts.find((post) => post.id === postId)) return notFound();
+  if (!post) notFound();
 
-  const { title, date, contentHtml } = await getPostData(postId);
+  const { meta, content } = post;
 
-  const formattedDate = getFormattedDate(date);
+  const formattedDate = getFormattedDate(meta.date);
+
+  const tags = meta.tags.map((tag, i) => (
+    <Link key={i} href={`/tags/${tag}`}>
+      {tag}
+    </Link>
+  ));
 
   return (
-    <main className="px-6 prose prose-2xl prose-slate dark:prose-invert mx-auto">
-      <h1 className="text-3xl mt-4 mb-0">{title}</h1>
-      <p className="mt-0">{formattedDate}</p>
-      <article>
-        <section dangerouslySetInnerHTML={{ __html: contentHtml }} />
-        <p>
-          <Link href="/">‹ Back to home</Link>
+    <>
+      <h2 className="text-3xl mt-4 mb-0">{meta.title}</h2>
+      <p className="mt-0 text-sm">{formattedDate}</p>
+      <article>{content}</article>
+      <section>
+        <h3>Related:</h3>
+        <div className="flex flex-row gap-4">
+          {tags}
+        </div>
+        <p className="mh-10">
+          <Link href="/">← Back to Home</Link>
         </p>
-      </article>
-    </main>
+      </section>
+    </>
   );
 }
 
-export async function generateStaticParams() {
-  const posts = getSortedPostsData();
+// Revalidate=0 & generateStaticParams do not work together because here pages are SSR
+// export async function generateStaticParams() {
+//   const posts = await getPostsMeta();
 
-  return posts.map((post) => ({
-    postId: post.id.toString(),
-  }));
-}
+//   if (!posts) return [];
+
+//   return posts.map((post) => ({
+//     postId: post.id.toString(),
+//   }));
+// }

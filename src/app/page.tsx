@@ -1,7 +1,7 @@
 import Posts from "./components/Posts";
 import MyProfilePic from "./components/MyProfilePic";
 
-export const revalidate = 10;
+export const revalidate = process.env.REVALIDATE;
 
 export default function Home() {
   return (

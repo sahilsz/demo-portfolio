@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import "highlight.js/styles/github-dark.css";
 
-export const revalidate = 0;
+export const revalidate = process.env.REVALIDATE;
 
 type Props = {
   params: {
@@ -60,12 +60,12 @@ export default async function Post({ params: { postId } }: Props) {
 }
 
 // Revalidate=0 & generateStaticParams do not work together because here pages are SSR
-// export async function generateStaticParams() {
-//   const posts = await getPostsMeta();
+export async function generateStaticParams() {
+  const posts = await getPostsMeta();
 
-//   if (!posts) return [];
+  if (!posts) return [];
 
-//   return posts.map((post) => ({
-//     postId: post.id.toString(),
-//   }));
-// }
+  return posts.map((post) => ({
+    postId: post.id.toString(),
+  }));
+}
